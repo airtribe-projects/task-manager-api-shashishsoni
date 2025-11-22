@@ -6,7 +6,16 @@ const app = express();
 const port = 3000;
 
 const taskFilePath = path.join(__dirname, 'task.json');
-const { tasks: initialTasks } = JSON.parse(fs.readFileSync(taskFilePath, 'utf-8'));
+let initialTasks = [];
+try {
+  const fileContent = fs.readFileSync(taskFilePath, 'utf-8');
+  if (fileContent.trim()) {
+    initialTasks = JSON.parse(fileContent).tasks || [];
+  }
+} catch (err) {
+  console.warn('Could not read or parse task.json, starting with empty tasks:', err.message);
+  initialTasks = [];
+}
 let tasks = [...initialTasks];
 let nextId = tasks.length ? Math.max(...tasks.map((t) => t.id)) + 1 : 1;
 
@@ -53,10 +62,6 @@ app.post('/tasks', (req, res) => {
 });
 
 app.put('/tasks/:id', (req, res) => {
-  if (!isValidTaskPayload(req.body)) {
-    return res.status(400).json({ error: 'Invalid task data' });
-  }
-
   const id = Number(req.params.id);
   const task = findTaskById(id);
 
@@ -64,9 +69,24 @@ app.put('/tasks/:id', (req, res) => {
     return res.status(404).json({ error: 'Task not found' });
   }
 
-  task.title = req.body.title;
-  task.description = req.body.description;
-  task.completed = req.body.completed;
+  if (req.body.title !== undefined) {
+    if (typeof req.body.title !== 'string') {
+      return res.status(400).json({ error: 'Invalid task data' });
+    }
+    task.title = req.body.title;
+  }
+  if (req.body.description !== undefined) {
+    if (typeof req.body.description !== 'string') {
+      return res.status(400).json({ error: 'Invalid task data' });
+    }
+    task.description = req.body.description;
+  }
+  if (req.body.completed !== undefined) {
+    if (typeof req.body.completed !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid task data' });
+    }
+    task.completed = req.body.completed;
+  }
 
   res.status(200).json(task);
 });
@@ -83,7 +103,7 @@ app.delete('/tasks/:id', (req, res) => {
   res.status(200).json({ message: 'Task deleted' });
 });
 
-app.use((err, res) => {
+app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'Internal Server Error' });
 });
