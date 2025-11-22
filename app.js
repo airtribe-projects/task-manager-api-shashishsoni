@@ -83,7 +83,7 @@ app.delete('/tasks/:id', (req, res) => {
   res.status(200).json({ message: 'Task deleted' });
 });
 
-app.use((err, req, res, next) => {
+app.use((err, res) => {
   console.error(err);
   res.status(500).json({ error: 'Internal Server Error' });
 });
